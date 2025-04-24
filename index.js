@@ -4,6 +4,7 @@ import morgan from "morgan";
 import mongoose from "mongoose";
 const app = express();
 import userRouter from "./router/userRouter.js";
+import projectRouter from "./router/projectRouter.js";
 
 //middlewares
 app.use(cors());
@@ -11,7 +12,8 @@ app.use(morgan("dev"));
 app.use(express.json());
 
 //routes
-app.use("/api/v1", userRouter);
+app.use("/api/v1/user", userRouter);
+app.use("/api/v1/project", projectRouter);
 
 console.log(process.env.LOCAL_DB, "DB URL");
 

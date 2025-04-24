@@ -67,4 +67,23 @@ const checkUserNameAvailablity = catchAsync(async (req, res, next) => {
     .json({ message: "Username is available", available: true });
 });
 
-export { getUserProfile, checkUserNameAvailablity };
+const getUserByUsername = catchAsync(async (req, res, next) => {
+  const { username } = req.params;
+
+  // Check if the username is already taken
+  const user = await User.findOne({ username });
+
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  const userResponse = {
+    id: user._id,
+    name: user.name,
+    ...(user.photo && { photo: user.photo }), // Include photo only if it exists
+  };
+
+  return res.status(200).json({ user: userResponse });
+});
+
+export { getUserProfile, checkUserNameAvailablity, getUserByUsername };
