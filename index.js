@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 const app = express();
 import userRouter from "./router/userRouter.js";
 import projectRouter from "./router/projectRouter.js";
+import globalErrorHandler from "./controller/errorController.js";
 
 //middlewares
 app.use(cors());
@@ -15,7 +16,11 @@ app.use(express.json());
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/project", projectRouter);
 
-console.log(process.env.LOCAL_DB, "DB URL");
+// app.get("*", (req, res, next) => {
+//   next(new AppError("Route not found", 404));
+// });
+
+app.use(globalErrorHandler);
 
 mongoose
   .connect(process.env.LOCAL_DB)

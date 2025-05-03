@@ -1,5 +1,6 @@
 import User from "../models/user.js";
 import catchAsync from "../utils/catchAsync.js";
+import Project from "../models/project.js";
 import jwt from "jsonwebtoken";
 import { promisify } from "util";
 
@@ -17,9 +18,9 @@ const signUp = catchAsync(async (req, res) => {
     password,
     passwordConfirm,
   };
-  console.log(req.file, "req.file");
+
   if (req?.file?.fieldname === "photo") {
-    newUser.photo = `http://localhost:3000/api/v1/profile/${username}`;
+    newUser.photo = `http://localhost:3000/api/v1/user/profile/${username}`;
   }
 
   const user = await User.create(newUser);
@@ -40,8 +41,7 @@ const signUp = catchAsync(async (req, res) => {
   });
 });
 
-const login = catchAsync(async (req, res) => {
-  console.log(req.body, "login body");
+const login = catchAsync(async (req, res, next) => {
   const { email, password } = req.body;
   //1) check if email and password exist
   if (!email || !password) {
@@ -53,10 +53,7 @@ const login = catchAsync(async (req, res) => {
   //2) check if user exists && password is correct
   const user = await User.findOne({ email }).select("+password");
   if (!user || !(await user.isPasswordCorrect(password, user.password))) {
-    return res.status(401).json({
-      status: "fail",
-      message: "Incorrect email or password",
-    });
+    next("Invalid username or password", 401);
   }
   //3) if everything ok, send token to client
   const token = signToken(user._id);
@@ -107,7 +104,83 @@ const protectedRoute = catchAsync(async (req, res, next) => {
   req.user = currentUser;
 
   next();
-  console.log(req.body);
 });
 
-export { signUp, login, protectedRoute };
+const dashboardStats = catchAsync(async (req, res, next) => {
+  const user = req.user;
+  const projects = await Project.find({
+    $or: [{ owner: user._id }, { members: user._id }],
+  }).populate([
+    {
+      path: "latestVersion",
+      populate: {
+        path: "report",
+      },
+    },
+  ]);
+  const totalProjects = projects.length;
+  const totalSmells = projects.reduce((acc, project) => {
+    if (project.latestVersion && project.latestVersion.report) {
+      return acc + project.latestVersion.report.totalSmells;
+    }
+    return acc;
+  }, 0);
+
+  const codeQuality = 100 - (totalSmells / totalProjects) * 100;
+  console.log(projects, "projects");
+
+  const chartData = projects.reduce((acc, project) => {
+    if (project.latestVersion && project.latestVersion.report) {
+      const report = project.latestVersion.report;
+      report.chartData.forEach((smell) => {
+        const existingSmell = acc.find(
+          (item) => item.codeSmellName === smell.codeSmellName
+        );
+        if (existingSmell) {
+          existingSmell.value += smell.value;
+        } else {
+          acc.push({
+            codeSmellName: smell.codeSmellName,
+            value: smell.value,
+            color: smell.color,
+          });
+        }
+      });
+    }
+    return acc;
+  }, []);
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      totalProjects,
+      totalSmells,
+      codeQuality,
+      chartData,
+    },
+  });
+});
+
+const recentProjects = catchAsync(async (req, res, next) => {
+  const user = req.user;
+  const projects = await Project.find({
+    $or: [{ owner: user._id }, { members: user._id }],
+  })
+    .sort({ createdAt: -1 })
+    .limit(5)
+    .populate({
+      path: "latestVersion",
+      populate: {
+        path: "report",
+        select: "totalSmells",
+      },
+    })
+    .select("title latestVersion createdAt");
+
+  res.status(200).json({
+    status: "success",
+    projects,
+  });
+});
+
+export { signUp, login, protectedRoute, dashboardStats, recentProjects };

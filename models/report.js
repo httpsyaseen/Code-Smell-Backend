@@ -46,14 +46,17 @@ const reportSchema = new Schema({
         codeSmellName: {
           type: String,
           required: [true, "Please provide a name"],
+          default: "No Code Smell",
         },
         value: {
           type: Number,
           required: [true, "Please provide a value"],
+          default: 1,
         },
         color: {
           type: String,
           required: [true, "Please provide a color"],
+          default: "#143111",
         },
       },
     ],

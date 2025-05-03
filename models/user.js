@@ -9,7 +9,9 @@ const userSchema = new Schema({
     type: String,
     required: [true, "Please provide a username"],
     unique: true,
+    trim: true,
     lowercase: true,
+    set: (value) => value.trim(), // Auto trim the username
   },
   name: {
     type: String,

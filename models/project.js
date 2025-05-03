@@ -23,15 +23,26 @@ const projectSchema = new Schema({
       ref: "User",
     },
   ],
-  version: [
+
+  latestVersion: {
+    type: Schema.Types.ObjectId,
+    ref: "Version",
+  },
+
+  previousVersions: [
     {
       type: Schema.Types.ObjectId,
       ref: "Version",
     },
   ],
-  latestVersion: {
-    type: Schema.Types.ObjectId,
-    ref: "Version",
+  totalSmells: {
+    type: Number,
+    default: 0,
+    required: [true, "Please provide a totalSmells"],
+  },
+  lastUpdated: {
+    type: Date,
+    default: Date.now(),
   },
 });
 

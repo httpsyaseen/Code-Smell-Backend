@@ -71,12 +71,14 @@ const getUserByUsername = catchAsync(async (req, res, next) => {
   const { username } = req.params;
 
   // Check if the username is already taken
-  const user = await User.findOne({ username });
+  const user = (await User.find({ username, _id: { $ne: req.user._id } })).at(
+    0
+  );
 
   if (!user) {
     return res.status(404).json({ message: "User not found" });
   }
-
+  console.log(user, "user");
   const userResponse = {
     id: user._id,
     name: user.name,
