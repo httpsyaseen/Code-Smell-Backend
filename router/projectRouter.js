@@ -1,7 +1,6 @@
 import express from "express";
 import {
   protectedRoute,
-  dashboardStats,
   recentProjects,
 } from "../controller/authController.js";
 import {
@@ -9,6 +8,7 @@ import {
   getProjectDetails,
   updateProject,
   getProjectSettings,
+  dashboardStats,
   getAllProjects,
 } from "../controller/projectController.js";
 import multer from "multer";

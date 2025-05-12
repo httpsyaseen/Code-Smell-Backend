@@ -44,6 +44,10 @@ const projectSchema = new Schema({
     type: Date,
     default: Date.now(),
   },
+  qualityScore: {
+    type: Number,
+    required: [true, "Code Quality must be provided"],
+  },
 });
 
 const Project = model("Project", projectSchema);

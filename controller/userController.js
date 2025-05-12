@@ -58,7 +58,7 @@ const checkUserNameAvailablity = catchAsync(async (req, res, next) => {
   const user = await User.find({ username });
   if (user.length > 0) {
     return res
-      .status(409)
+      .status(200)
       .json({ message: "Username already taken", available: false });
   }
 

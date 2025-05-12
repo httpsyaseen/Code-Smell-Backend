@@ -1,6 +1,11 @@
 import express from "express";
 import { upload } from "../utils/multerUpload.js";
-import { signUp, login, protectedRoute } from "../controller/authController.js";
+import {
+  signUp,
+  login,
+  protectedRoute,
+  verifyUser,
+} from "../controller/authController.js";
 import {
   getUserProfile,
   checkUserNameAvailablity,
@@ -13,5 +18,6 @@ router.route("/login").post(login);
 router.route("/profile/:username").get(getUserProfile);
 router.route("/check-username/:username").get(checkUserNameAvailablity);
 router.route("/userinfo/:username").get(protectedRoute, getUserByUsername);
+router.route("/verify").get(verifyUser);
 
 export default router;

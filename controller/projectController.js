@@ -3,8 +3,16 @@ import Version from "../models/version.js";
 import Report from "../models/report.js";
 import catchAsync from "../utils/catchAsync.js";
 import { extractJavaFilesFromZip } from "../utils/zip.js";
-import axios from "axios";
-import FormData from "form-data";
+import { getCodeSmellData } from "../utils/getCodeSmell.js";
+import {
+  calculateAffectedFiles,
+  calculateChartData,
+  calculateCodeQuality,
+  calculateDashboardChartData,
+  calculateTotalSmellsInProjects,
+  calculateDashboardCodeQualityScore,
+} from "../utils/helper.js";
+import AppError from "../utils/appError.js";
 
 const createProject = catchAsync(async (req, res, next) => {
   const { name, description } = req.body;
@@ -12,63 +20,19 @@ const createProject = catchAsync(async (req, res, next) => {
   const zipFile = req.file;
 
   if (!zipFile) {
-    return next("Zip file is required.", 400);
+    return next(new AppError("Zip file is required.", 400));
   }
 
-  // Step 1: Extract java files from zip buffer
   const javaFiles = extractJavaFilesFromZip(zipFile.buffer);
-  const formData = new FormData();
-  formData.append("file", zipFile.buffer, {
-    filename: zipFile.originalname,
-    contentType: zipFile.mimetype,
-  });
-
-  const response = await axios.post("http://localhost:5000/upload", formData, {
-    headers: formData.getHeaders(),
-  });
 
   if (javaFiles.length === 0) {
-    return next("No java files found in the zip.", 400);
+    return next(new AppError("No java files found in the zip.", 400));
   }
-  const affectedFiles = smells.reduce((acc, curr) => {
-    const existingFile = acc.find((file) => file.fileName === curr.fileName);
-    if (existingFile) {
-      existingFile.totalOccurrences += 1;
-    } else {
-      acc.push({
-        fileName: curr.fileName,
-      });
-    }
-    return acc;
-  }, []);
 
-  const getRandomColor = () => {
-    return (
-      "#" +
-      Math.floor(Math.random() * 16777215)
-        .toString(16)
-        .padStart(6, "0")
-    );
-  };
-
-  const chartData = smells.reduce((acc, curr) => {
-    const existingSmell = acc.find(
-      (item) => item.codeSmellName === curr.smellType
-    );
-    if (existingSmell) {
-      existingSmell.value += 1;
-    } else {
-      acc.push({
-        codeSmellName: curr.smellType,
-        value: 1,
-        color: getRandomColor(),
-      });
-    }
-    return acc;
-  }, []);
-
-  const smells = response.data;
-
+  const smells = await getCodeSmellData(zipFile);
+  const affectedFiles = calculateAffectedFiles(smells);
+  const chartData = calculateChartData(smells);
+  const codeQuality = calculateCodeQuality(smells, javaFiles.length).toFixed(2);
   const report = await Report.create({
     smells: smells,
     totalFiles: javaFiles.length,
@@ -91,6 +55,7 @@ const createProject = catchAsync(async (req, res, next) => {
     latestVersion: version._id,
     members: newMembers,
     totalSmells: report.totalSmells,
+    qualityScore: codeQuality,
   });
 
   res.status(201).json({ status: "success", project });
@@ -107,11 +72,13 @@ const getProjectDetails = catchAsync(async (req, res, next) => {
   });
 
   if (!project) {
-    return next("Project not found", 404);
+    return next(new AppError("Project not found", 404));
   }
 
   if (project.owner.toString() !== req.user._id.toString()) {
-    return next("You are not authorized to view this project", 403);
+    return next(
+      new AppError("You are not authorized to view this project", 403)
+    );
   }
 
   res.status(200).json({ status: "success", project });
@@ -122,70 +89,25 @@ const updateProject = catchAsync(async (req, res, next) => {
   const zipFile = req.file;
 
   if (!zipFile) {
-    return next("Zip file is required.", 400);
+    return next(new AppError("Zip file is required.", 400));
   }
-  const formData = new FormData();
-  formData.append("file", zipFile.buffer, {
-    filename: zipFile.originalname,
-    contentType: zipFile.mimetype,
-  });
-
-  const response = await axios.post("http://localhost:5000/upload", formData, {
-    headers: formData.getHeaders(),
-  });
-
-  const smells = response.data;
 
   // Step 1: Find and populate the project with latestVersion
   const project = await Project.findById(projectId).populate("latestVersion");
   if (!project) {
-    return next("Project not found", 404);
+    return next(new AppError("Project not found", 404));
   }
 
-  // Step 2: Extract java files from zip
   const javaFiles = extractJavaFilesFromZip(zipFile.buffer);
   if (javaFiles.length === 0) {
-    return next("No java files found in the zip.", 400);
+    return next(new AppError("No java files found in the zip.", 400));
   }
 
+  const smells = await getCodeSmellData(zipFile);
+
   // Step 3: Generate report data
-  const affectedFiles = smells.reduce((acc, curr) => {
-    const existingFile = acc.find((file) => file.fileName === curr.fileName);
-    if (existingFile) {
-      existingFile.totalOccurrences += 1;
-    } else {
-      acc.push({
-        fileName: curr.fileName,
-        totalOccurrences: 1,
-      });
-    }
-    return acc;
-  }, []);
-
-  const getRandomColor = () => {
-    return (
-      "#" +
-      Math.floor(Math.random() * 16777215)
-        .toString(16)
-        .padStart(6, "0")
-    );
-  };
-
-  const chartData = smells.reduce((acc, curr) => {
-    const existingSmell = acc.find(
-      (item) => item.codeSmellName === curr.smellType
-    );
-    if (existingSmell) {
-      existingSmell.value += 1;
-    } else {
-      acc.push({
-        codeSmellName: curr.smellType,
-        value: 1,
-        color: getRandomColor(),
-      });
-    }
-    return acc;
-  }, []);
+  const affectedFiles = calculateAffectedFiles(smells);
+  const chartData = calculateChartData(smells);
 
   // Step 4: Create new report
   const report = await Report.create({
@@ -262,10 +184,40 @@ const getAllProjects = catchAsync(async (req, res, next) => {
   });
 });
 
+const dashboardStats = catchAsync(async (req, res, next) => {
+  const user = req.user;
+  const projects = await Project.find({
+    $or: [{ owner: user._id }, { members: user._id }],
+  }).populate([
+    {
+      path: "latestVersion",
+      populate: {
+        path: "report",
+      },
+    },
+  ]);
+  const totalProjects = projects.length;
+  const totalSmells = calculateTotalSmellsInProjects(projects);
+  const rawScore = calculateDashboardCodeQualityScore(projects);
+  const codeQuality = isNaN(rawScore) ? "0.00" : rawScore.toFixed(2);
+  const chartData = calculateDashboardChartData(projects);
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      totalProjects,
+      totalSmells,
+      codeQuality,
+      chartData,
+    },
+  });
+});
+
 export {
   createProject,
   getProjectDetails,
   updateProject,
   getProjectSettings,
   getAllProjects,
+  dashboardStats,
 };

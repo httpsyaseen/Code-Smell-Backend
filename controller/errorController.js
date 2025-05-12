@@ -5,11 +5,15 @@ const handleCastError = (err) => {
 };
 
 const handleDuplicateError = (err) => {
-  return new AppError(`Duplicate Field. Please use another name`, 400);
+  const duplicateField = Object.keys(err.keyValue)[0];
+  return new AppError(
+    `${duplicateField} is already taken. Please use another`,
+    400
+  );
 };
 
 const handleValidationError = (err) => {
-  return new AppError("Invalid Data", 400);
+  return new AppError("Invalid Data. Please provide Valid Data", 400);
 };
 
 const sendDevEror = (error, res) => {

@@ -3,6 +3,7 @@ import catchAsync from "../utils/catchAsync.js";
 import Project from "../models/project.js";
 import jwt from "jsonwebtoken";
 import { promisify } from "util";
+import AppError from "../utils/appError.js";
 
 const signToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET_KEY, {
@@ -53,7 +54,7 @@ const login = catchAsync(async (req, res, next) => {
   //2) check if user exists && password is correct
   const user = await User.findOne({ email }).select("+password");
   if (!user || !(await user.isPasswordCorrect(password, user.password))) {
-    next("Invalid username or password", 401);
+    return next(new AppError("Invalid username or password", 401));
   }
   //3) if everything ok, send token to client
   const token = signToken(user._id);
@@ -106,58 +107,38 @@ const protectedRoute = catchAsync(async (req, res, next) => {
   next();
 });
 
-const dashboardStats = catchAsync(async (req, res, next) => {
-  const user = req.user;
-  const projects = await Project.find({
-    $or: [{ owner: user._id }, { members: user._id }],
-  }).populate([
-    {
-      path: "latestVersion",
-      populate: {
-        path: "report",
-      },
-    },
-  ]);
-  const totalProjects = projects.length;
-  const totalSmells = projects.reduce((acc, project) => {
-    if (project.latestVersion && project.latestVersion.report) {
-      return acc + project.latestVersion.report.totalSmells;
-    }
-    return acc;
-  }, 0);
+const verifyUser = catchAsync(async (req, res, next) => {
+  //1. Get token and check if it exists
+  let token;
+  if (req.headers?.authorization?.startsWith("Bearer")) {
+    token = req.headers.authorization.split(" ")[1];
+  }
 
-  const codeQuality = 100 - (totalSmells / totalProjects) * 100;
-  console.log(projects, "projects");
+  if (!token) {
+    next(new AppError("Authorized Users Only", 401));
+  }
 
-  const chartData = projects.reduce((acc, project) => {
-    if (project.latestVersion && project.latestVersion.report) {
-      const report = project.latestVersion.report;
-      report.chartData.forEach((smell) => {
-        const existingSmell = acc.find(
-          (item) => item.codeSmellName === smell.codeSmellName
-        );
-        if (existingSmell) {
-          existingSmell.value += smell.value;
-        } else {
-          acc.push({
-            codeSmellName: smell.codeSmellName,
-            value: smell.value,
-            color: smell.color,
-          });
-        }
-      });
-    }
-    return acc;
-  }, []);
+  //2.Verify token and handle 2 Errors
+  const decoded = await promisify(jwt.verify)(
+    token,
+    process.env.JWT_SECRET_KEY
+  );
+
+  //3. Check if user exists
+  const currentUser = await User.findById(decoded.id);
+
+  if (!currentUser) {
+    return next(new AppError("User does not exist", 401));
+  }
+  //4. is Pasword Changed After the jwt issues
+  const changed = currentUser.isPasswordChangedAfterTokenExpires(decoded.iat);
+  if (changed) {
+    return next(new AppError("User recently changed password", 401));
+  }
 
   res.status(200).json({
     status: "success",
-    data: {
-      totalProjects,
-      totalSmells,
-      codeQuality,
-      chartData,
-    },
+    user: currentUser,
   });
 });
 
@@ -183,4 +164,4 @@ const recentProjects = catchAsync(async (req, res, next) => {
   });
 });
 
-export { signUp, login, protectedRoute, dashboardStats, recentProjects };
+export { signUp, login, protectedRoute, recentProjects, verifyUser };

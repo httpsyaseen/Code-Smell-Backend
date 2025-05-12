@@ -29,9 +29,17 @@ const reportSchema = new Schema({
         type: String,
         required: [true, "Please provide a file path"],
       },
-      lineNumber: {
+      startLine: {
         type: Number,
-        required: [true, "Please provide a line number"],
+        required: [true, "Please provide a start line number"],
+      },
+      endLine: {
+        type: Number,
+        required: [true, "Please provide a end line number"],
+      },
+      category: {
+        type: String,
+        required: [true, "Please provide category"],
       },
     },
   ],
@@ -43,10 +51,9 @@ const reportSchema = new Schema({
   chartData: {
     type: [
       {
-        codeSmellName: {
+        category: {
           type: String,
-          required: [true, "Please provide a name"],
-          default: "No Code Smell",
+          required: [true, "Please provide a category"],
         },
         value: {
           type: Number,
