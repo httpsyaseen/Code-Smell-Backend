@@ -3,7 +3,7 @@ import Version from "../models/version.js";
 import Report from "../models/report.js";
 import catchAsync from "../utils/catchAsync.js";
 import { extractJavaFilesFromZip } from "../utils/zip.js";
-import { getCodeSmellData } from "../utils/getCodeSmell.js";
+import { getCodeSmellData, getSmellyJavaFiles } from "../utils/getCodeSmell.js";
 import {
   calculateAffectedFiles,
   calculateChartData,
@@ -33,6 +33,7 @@ const createProject = catchAsync(async (req, res, next) => {
   const affectedFiles = calculateAffectedFiles(smells);
   const chartData = calculateChartData(smells);
   const codeQuality = calculateCodeQuality(smells, javaFiles.length).toFixed(2);
+  const smellyFiles = getSmellyJavaFiles(javaFiles, smells);
   const report = await Report.create({
     smells: smells,
     totalFiles: javaFiles.length,
@@ -43,7 +44,7 @@ const createProject = catchAsync(async (req, res, next) => {
 
   const version = await Version.create({
     version: 1,
-    projectFiles: javaFiles,
+    projectFiles: smellyFiles,
     report: report._id,
   });
 
@@ -108,6 +109,7 @@ const updateProject = catchAsync(async (req, res, next) => {
   // Step 3: Generate report data
   const affectedFiles = calculateAffectedFiles(smells);
   const chartData = calculateChartData(smells);
+  const codeQuality = calculateCodeQuality(smells, javaFiles.length).toFixed(2);
 
   // Step 4: Create new report
   const report = await Report.create({
@@ -136,6 +138,7 @@ const updateProject = catchAsync(async (req, res, next) => {
 
   project.latestVersion = newVersion._id;
   project.totalSmells = report.totalSmells;
+  project.qualityScore = codeQuality;
   await project.save();
 
   const updatedProject = await Project.findById(projectId).populate({
@@ -213,6 +216,32 @@ const dashboardStats = catchAsync(async (req, res, next) => {
   });
 });
 
+const getCodeInformation = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const project = await Project.findById(id)
+    .populate({
+      path: "latestVersion",
+      select: "+projectFiles",
+      populate: {
+        path: "report",
+      },
+    })
+    .select("+latestVersion.projectFiles");
+
+  if (!project) {
+    return next(new AppError("No Project Found ", 400));
+  }
+  const fileData = project.latestVersion.projectFiles;
+  console.log(fileData);
+  const smells = project.latestVersion.report.smells;
+
+  res.status(200).json({
+    title: project.title,
+    fileData,
+    smells,
+  });
+});
+
 export {
   createProject,
   getProjectDetails,
@@ -220,4 +249,5 @@ export {
   getProjectSettings,
   getAllProjects,
   dashboardStats,
+  getCodeInformation,
 };

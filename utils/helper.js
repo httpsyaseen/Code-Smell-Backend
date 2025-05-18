@@ -32,11 +32,19 @@ function calculateChartData(smells) {
     countMap[category] = (countMap[category] || 0) + 1;
   });
 
-  return Object.entries(countMap).map(([category, value]) => ({
-    category,
-    value,
-    color: getRandomColor(),
-  }));
+  return Object.entries(countMap).map(([category, value]) => {
+    const color =
+      category === "Design"
+        ? "#2ea043"
+        : category === "Best Practices"
+        ? "#0366d6"
+        : "#8250df";
+    return {
+      category,
+      value,
+      color,
+    };
+  });
 }
 
 function calculateTotalSmellsInProjects(projects) {
@@ -80,6 +88,8 @@ function calculateDashboardChartData(projects) {
 }
 
 function calculateCodeQuality(codeSmells, totalFiles) {
+  if (totalFiles === 0) return 0; // avoid division by zero
+
   const baseScore = totalFiles * 3;
   let totalImpact = 0;
 
@@ -87,8 +97,9 @@ function calculateCodeQuality(codeSmells, totalFiles) {
     totalImpact += smell.weight;
   }
 
-  const qualityScore =
-    totalImpact > baseScore ? 1 : (totalImpact / baseScore) * 100;
+  const rawScore = baseScore - totalImpact;
+  const qualityScore = Math.max(0, (rawScore / baseScore) * 100);
+
   return qualityScore;
 }
 

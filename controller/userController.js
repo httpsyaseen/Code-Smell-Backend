@@ -82,6 +82,7 @@ const getUserByUsername = catchAsync(async (req, res, next) => {
   const userResponse = {
     id: user._id,
     name: user.name,
+    username: user.username,
     ...(user.photo && { photo: user.photo }), // Include photo only if it exists
   };
 

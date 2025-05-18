@@ -16,4 +16,14 @@ async function getCodeSmellData(zipFile) {
   return response?.data?.codeSmells;
 }
 
+export const getSmellyJavaFiles = (javaFiles, codeSmells) => {
+  const targetFileNames = new Set(codeSmells.map((smell) => smell.fileName));
+
+  const smellyFiles = javaFiles.filter((file) =>
+    targetFileNames.has(file.fileName)
+  );
+
+  return smellyFiles;
+};
+
 export { getCodeSmellData };

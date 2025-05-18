@@ -41,6 +41,10 @@ const reportSchema = new Schema({
         type: String,
         required: [true, "Please provide category"],
       },
+      weight: {
+        type: Number,
+        required: [true, "please procide weight of the smell"],
+      },
     },
   ],
   generatedAt: {

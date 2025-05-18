@@ -10,6 +10,7 @@ import {
   getProjectSettings,
   dashboardStats,
   getAllProjects,
+  getCodeInformation,
 } from "../controller/projectController.js";
 import multer from "multer";
 
@@ -35,5 +36,6 @@ router
 router.route("/dashboard-stats").get(protectedRoute, dashboardStats);
 router.route("/recent-projects").get(protectedRoute, recentProjects);
 router.route("/get-all-projects").get(protectedRoute, getAllProjects);
+router.route("/getcodeinfo/:id").get(protectedRoute, getCodeInformation);
 
 export default router;
