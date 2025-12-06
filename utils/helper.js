@@ -88,17 +88,73 @@ function calculateDashboardChartData(projects) {
 }
 
 function calculateCodeQuality(codeSmells, totalFiles) {
-  if (totalFiles === 0) return 0; // avoid division by zero
+  if (totalFiles === 0) return 100; // perfect score for empty project
 
-  const baseScore = totalFiles * 3;
-  let totalImpact = 0;
+  // Constants for quality calculation
+  const PERFECT_SCORE = 100;
+  const SMELL_DENSITY_THRESHOLD = 2; // smells per file threshold for healthy code
+
+  // Category-based severity multipliers
+  const SEVERITY_MULTIPLIERS = {
+    design: 1.2, // Design issues have higher impact
+    "best practices": 0.8, // Best practices are important but less critical
+    default: 1.0,
+  };
+
+  // Calculate smell statistics
+  const totalSmells = codeSmells.length;
+  const smellDensity = totalSmells / totalFiles; // smells per file
+
+  // Calculate category-weighted impact
+  let weightedImpact = 0;
+  const categoryDistribution = {};
 
   for (const smell of codeSmells) {
-    totalImpact += smell.weight;
+    const category = smell.category?.toLowerCase() || "default";
+    const multiplier =
+      SEVERITY_MULTIPLIERS[category] || SEVERITY_MULTIPLIERS.default;
+    weightedImpact += (smell.weight || 3) * multiplier;
+
+    // Track category distribution
+    categoryDistribution[category] = (categoryDistribution[category] || 0) + 1;
   }
 
-  const rawScore = baseScore - totalImpact;
-  const qualityScore = Math.max(0, (rawScore / baseScore) * 100);
+  // Calculate category diversity penalty (0-15 points)
+  // Projects with diverse smell types indicate broader quality issues
+  const uniqueCategories = Object.keys(categoryDistribution).length;
+  const diversityPenalty = Math.min(15, uniqueCategories * 5);
+
+  // Calculate density penalty with non-linear curve
+  // Penalize projects with high smell concentration
+  const densityRatio = smellDensity / SMELL_DENSITY_THRESHOLD;
+  const densityPenalty =
+    densityRatio > 1 ? Math.min(25, 15 * Math.log(densityRatio + 1)) : 0;
+
+  // Calculate base deduction from weighted impact
+  // Normalize by file count to make scores comparable across projects
+  const impactPerFile = weightedImpact / totalFiles;
+  const baseDeduction = Math.min(50, impactPerFile * 8); // cap at 50 points
+
+  // Calculate final quality score
+  let qualityScore =
+    PERFECT_SCORE - baseDeduction - densityPenalty - diversityPenalty;
+
+  // Apply floor (minimum score of 0)
+  qualityScore = Math.max(0, qualityScore);
+
+  // Round to 2 decimal places for readability
+  qualityScore = Math.round(qualityScore * 100) / 100;
+
+  console.log({
+    totalFiles,
+    totalSmells,
+    smellDensity: smellDensity.toFixed(2),
+    weightedImpact,
+    baseDeduction: baseDeduction.toFixed(2),
+    densityPenalty: densityPenalty.toFixed(2),
+    diversityPenalty,
+    finalScore: qualityScore,
+  });
 
   return qualityScore;
 }

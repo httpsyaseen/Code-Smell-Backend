@@ -5,6 +5,7 @@ import mongoose from "mongoose";
 const app = express();
 import userRouter from "./router/userRouter.js";
 import projectRouter from "./router/projectRouter.js";
+import refactorRouter from "./router/refactorRouter.js";
 import globalErrorHandler from "./controller/errorController.js";
 
 //middlewares
@@ -15,6 +16,7 @@ app.use(express.json());
 //routes
 app.use("/api/v1/user", userRouter);
 app.use("/api/v1/project", projectRouter);
+app.use("/api/v1/refactor", refactorRouter);
 
 // app.get("*", (req, res, next) => {
 //   next(new AppError("Route not found", 404));

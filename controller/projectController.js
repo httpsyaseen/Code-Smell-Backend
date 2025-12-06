@@ -165,6 +165,8 @@ const getProjectSettings = catchAsync(async (req, res, next) => {
   if (!project) {
     return res.status(404).json({ message: "Project not found" });
   }
+
+  console.log(project);
   res.status(200).json({ status: "success", project });
 });
 
@@ -242,6 +244,169 @@ const getCodeInformation = catchAsync(async (req, res, next) => {
   });
 });
 
+const getProjectMembers = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+
+  const project = await Project.findById(id)
+    .populate("members", "name username email photo")
+    .populate("owner", "name username email photo");
+
+  if (!project) {
+    return next(new AppError("Project not found", 404));
+  }
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      owner: project.owner,
+      members: project.members,
+      totalMembers: project.members.length,
+    },
+  });
+});
+
+const addMember = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const { memberId } = req.body;
+
+  if (!memberId) {
+    return next(new AppError("Member ID is required", 400));
+  }
+
+  const project = await Project.findById(id);
+
+  if (!project) {
+    return next(new AppError("Project not found", 404));
+  }
+
+  // Check if the user is the owner
+  if (project.owner.toString() !== req.user._id.toString()) {
+    return next(new AppError("Only the project owner can add members", 403));
+  }
+
+  // Check if member is already in the project
+  if (project.members.includes(memberId)) {
+    return next(new AppError("User is already a member of this project", 400));
+  }
+
+  // Check if trying to add the owner as a member
+  if (project.owner.toString() === memberId) {
+    return next(new AppError("Owner cannot be added as a member", 400));
+  }
+
+  project.members.push(memberId);
+  await project.save();
+
+  const updatedProject = await Project.findById(id)
+    .populate("members", "name username email photo")
+    .populate("owner", "name username email photo");
+
+  res.status(200).json({
+    status: "success",
+    message: "Member added successfully",
+    data: {
+      owner: updatedProject.owner,
+      members: updatedProject.members,
+      totalMembers: updatedProject.members.length,
+    },
+  });
+});
+
+const removeMember = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+  const { memberId } = req.body;
+
+  if (!memberId) {
+    return next(new AppError("Member ID is required", 400));
+  }
+
+  const project = await Project.findById(id);
+
+  if (!project) {
+    return next(new AppError("Project not found", 404));
+  }
+
+  // Check if the user is the owner
+  if (project.owner.toString() !== req.user._id.toString()) {
+    return next(new AppError("Only the project owner can remove members", 403));
+  }
+
+  // Check if member exists in the project
+  const memberIndex = project.members.findIndex(
+    (member) => member.toString() === memberId
+  );
+
+  if (memberIndex === -1) {
+    return next(new AppError("User is not a member of this project", 400));
+  }
+
+  project.members.splice(memberIndex, 1);
+  await project.save();
+
+  const updatedProject = await Project.findById(id)
+    .populate("members", "name username email photo")
+    .populate("owner", "name username email photo");
+
+  res.status(200).json({
+    status: "success",
+    message: "Member removed successfully",
+    data: {
+      owner: updatedProject.owner,
+      members: updatedProject.members,
+      totalMembers: updatedProject.members.length,
+    },
+  });
+});
+
+const deleteProject = catchAsync(async (req, res, next) => {
+  const { id } = req.params;
+
+  // Find the project
+  const project = await Project.findById(id);
+
+  if (!project) {
+    return next(new AppError("Project not found", 404));
+  }
+
+  // Check if the user is the owner
+  if (project.owner.toString() !== req.user._id.toString()) {
+    return next(
+      new AppError("You are not authorized to delete this project", 403)
+    );
+  }
+
+  // Collect all version IDs (latest + previous)
+  const versionIds = [];
+  if (project.latestVersion) {
+    versionIds.push(project.latestVersion);
+  }
+  if (project.previousVersions && project.previousVersions.length > 0) {
+    versionIds.push(...project.previousVersions);
+  }
+
+  // Get all versions to find their reports
+  const versions = await Version.find({ _id: { $in: versionIds } });
+  const reportIds = versions.map((version) => version.report).filter(Boolean);
+
+  // Delete all reports
+  if (reportIds.length > 0) {
+    await Report.deleteMany({ _id: { $in: reportIds } });
+  }
+
+  // Delete all versions
+  if (versionIds.length > 0) {
+    await Version.deleteMany({ _id: { $in: versionIds } });
+  }
+
+  // Delete the project
+  await Project.findByIdAndDelete(id);
+
+  res.status(200).json({
+    status: "success",
+    message: "Project deleted successfully",
+  });
+});
+
 export {
   createProject,
   getProjectDetails,
@@ -250,4 +415,8 @@ export {
   getAllProjects,
   dashboardStats,
   getCodeInformation,
+  getProjectMembers,
+  addMember,
+  removeMember,
+  deleteProject,
 };
