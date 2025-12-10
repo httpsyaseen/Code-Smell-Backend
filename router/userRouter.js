@@ -5,6 +5,8 @@ import {
   login,
   protectedRoute,
   verifyUser,
+  forgotPassword,
+  resetPassword,
 } from "../controller/authController.js";
 import {
   getUserProfile,
@@ -15,6 +17,8 @@ const router = express.Router();
 
 router.route("/signup").post(upload.single("photo"), signUp);
 router.route("/login").post(login);
+router.route("/forgot-password").post(forgotPassword);
+router.route("/reset-password/:token").post(resetPassword);
 router.route("/profile/:username").get(getUserProfile);
 router.route("/check-username/:username").get(checkUserNameAvailablity);
 router.route("/userinfo/:username").get(protectedRoute, getUserByUsername);
