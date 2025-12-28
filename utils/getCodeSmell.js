@@ -12,6 +12,7 @@ async function getCodeSmellData(zipFile) {
   const response = await axios.post("http://localhost:5000/upload", formData, {
     headers: formData.getHeaders(),
   });
+  console.log("Code Smell Response:", response.data);
 
   return response?.data?.codeSmells;
 }

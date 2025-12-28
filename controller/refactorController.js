@@ -23,8 +23,43 @@ const refactorCode = catchAsync(async (req, res, next) => {
     );
   }
 
+  // Check if the code smell is Feature Envy - handle it differently
+  const isFeatureEnvy = codeSmell.toLowerCase().includes("feature envy");
+
   // Create comprehensive prompt for AI
-  const prompt = `You are an expert software engineer specializing in code refactoring and clean code principles.
+  let prompt;
+
+  if (isFeatureEnvy) {
+    prompt = `You are an expert software engineer specializing in code refactoring and clean code principles.
+
+I have a piece of code with the "Feature Envy" code smell that needs to be analyzed:
+
+ORIGINAL CODE:
+\`\`\`
+${code}
+\`\`\`
+
+TASK:
+Analyze this code to identify the Feature Envy smell. Feature Envy occurs when a method uses more features (methods/fields) of another class than its own class.
+
+Please:
+1. Identify which method(s) have Feature Envy
+2. Identify which class the method is "envious" of (the class whose features it uses the most)
+3. Return the ORIGINAL code with detailed comments explaining:
+   - Which method should be moved
+   - Which class it should be moved to
+   - Why this move would eliminate the Feature Envy smell
+   - Any parameters that might need to be adjusted after the move
+
+Add comments using this format:
+// FEATURE ENVY DETECTED: [method name]
+// SUGGESTION: Move this method to [target class name]
+// REASON: This method accesses [list of fields/methods] from [target class] more than its own class
+// AFTER MOVE: [any adjustments needed]
+
+Return the original code WITH these analysis comments. Wrap the code in a code block.`;
+  } else {
+    prompt = `You are an expert software engineer specializing in code refactoring and clean code principles.
 
 I have a piece of code with the following code smell that needs to be fixed:
 
@@ -46,6 +81,7 @@ Please refactor this code to eliminate the "${codeSmell}" code smell while maint
 7. Optimize code structure without over-engineering
 
 Please provide ONLY the refactored code without explanations. Wrap the code in a code block.`;
+  }
 
   try {
     // Call AI API
