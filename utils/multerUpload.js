@@ -7,7 +7,9 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const ext = file.mimetype.split("/")[1];
-    cb(null, req.body.username + "." + file.mimetype.split(/\//)[1]);
+    // Use username from body (signup) or from authenticated user (photo change)
+    const username = req.body.username || req.user?.username;
+    cb(null, username + "." + ext);
   },
 });
 

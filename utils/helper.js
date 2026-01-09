@@ -16,14 +16,6 @@ function calculateAffectedFiles(smells) {
   return affectedFiles;
 }
 
-const getRandomColor = () => {
-  const letters = "0123456789ABCDEF";
-  let color = "#";
-  for (let i = 0; i < 6; i++) {
-    color += letters[Math.floor(Math.random() * 16)];
-  }
-  return color;
-};
 function calculateChartData(smells) {
   const countMap = {};
 
@@ -98,6 +90,7 @@ function calculateCodeQuality(codeSmells, totalFiles) {
   const SEVERITY_MULTIPLIERS = {
     design: 1.2, // Design issues have higher impact
     "best practices": 0.8, // Best practices are important but less critical
+    semantic: 1.0, // Semantic issues have standard impact on code correctness
     default: 1.0,
   };
 

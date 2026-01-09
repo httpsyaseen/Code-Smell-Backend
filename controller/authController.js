@@ -166,8 +166,6 @@ const recentProjects = catchAsync(async (req, res, next) => {
   });
 });
 
-export { signUp, login, protectedRoute, recentProjects, verifyUser };
-
 const forgotPassword = catchAsync(async (req, res, next) => {
   const { email } = req.body;
 
@@ -301,4 +299,12 @@ const resetPassword = catchAsync(async (req, res, next) => {
   });
 });
 
-export { forgotPassword, resetPassword };
+export {
+  signUp,
+  login,
+  protectedRoute,
+  recentProjects,
+  verifyUser,
+  forgotPassword,
+  resetPassword,
+};
